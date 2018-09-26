@@ -101,8 +101,8 @@ stop() ->
 init([]) ->
   init([erldns_config:packet_cache_default_ttl()]);
 init([TTL]) ->
-  erldns_storage:create(packet_cache),
-  {ok, Tref} = timer:apply_interval(erldns_config:packet_cache_sweep_interval(), ?MODULE, sweep, []),
+  erldns_storage:create(packet_cache), %% json场景下使用ets进行缓存
+  {ok, Tref} = timer:apply_interval(erldns_config:packet_cache_sweep_interval(), ?MODULE, sweep, []),%%定期进行缓存清理
   {ok, #state{ttl = TTL, ttl_overrides = erldns_config:packet_cache_ttl_overrides(), tref = Tref}}.
 
 handle_call({set_packet, [Key, Response]}, _From, State) ->
@@ -115,7 +115,7 @@ handle_call(stop, _From, State) ->
 handle_cast(sweep, State) ->
   Keys = erldns_storage:select(packet_cache, [{{'$1', {'_', '$2'}}, [{'<', '$2', timestamp() - 10}], ['$1']}], infinite),
   lists:foreach(fun(K) -> erldns_storage:delete(packet_cache, K) end, Keys),
-  {noreply, State};
+  {noreply, State}; %% 进行缓存清理
 
 handle_cast(clear, State) ->
   erldns_storage:empty_table(packet_cache),

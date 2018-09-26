@@ -42,7 +42,7 @@ filter(Records) ->
 
 %% Gen server hooks
 init([]) ->
-  erldns_handler:register_handler([?DNS_TYPE_A], ?MODULE),
+  erldns_handler:register_handler([?DNS_TYPE_A], ?MODULE), %% 注册自己为TYPE_A的处理器
   {ok, #state{}}.
 
 handle_call({handle, _Qname, _Qtype, Records}, _From, State) ->
