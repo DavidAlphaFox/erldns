@@ -39,7 +39,7 @@ start_link(Args) ->
 
 init([WorkerId]) ->
   {ok, WorkerProcessSup} = erldns_worker_process_sup:start_link([WorkerId]),
-  WorkerProcess = lists:last(supervisor:which_children(WorkerProcessSup)),
+  WorkerProcess = lists:last(supervisor:which_children(WorkerProcessSup)),%% 真正处理dns消息的进程
   {ok, #state{worker_process_sup = WorkerProcessSup, worker_process = WorkerProcess}}.
 
 handle_call(_Request, From, State) ->
@@ -126,12 +126,12 @@ handle_decoded_tcp_message(DecodedMessage, Socket, Address, {WorkerProcessSup, {
 handle_udp_dns_query(Socket, Host, Port, Bin, {WorkerProcessSup, WorkerProcess}) ->
   %lager:debug("handle_udp_dns_query(~p ~p ~p)", [Socket, Host, Port]),
   erldns_events:notify({start_udp, [{host, Host}]}),
-  Result = case erldns_decoder:decode_message(Bin) of
-    {trailing_garbage, DecodedMessage, _} ->
+  Result = case erldns_decoder:decode_message(Bin) of %% 解码dns消息
+    {trailing_garbage, DecodedMessage, _} -> %% 后面有不识别的垃圾数据
       handle_decoded_udp_message(DecodedMessage, Socket, Host, Port, {WorkerProcessSup, WorkerProcess});
     {_Error, _, _} ->
       ok;
-    DecodedMessage ->
+    DecodedMessage -> %% 默认解码出来的dns消息体
       handle_decoded_udp_message(DecodedMessage, Socket, Host, Port, {WorkerProcessSup, WorkerProcess})
   end,
   erldns_events:notify({end_udp, [{host, Host}]}),

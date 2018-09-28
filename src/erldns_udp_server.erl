@@ -64,7 +64,7 @@ is_running() ->
 init([InetFamily]) ->
   Port = erldns_config:get_port(),
   {ok, Socket} = start(Port, InetFamily),
-  {ok, #state{port = Port, socket = Socket, workers = make_workers(queue:new())}};
+  {ok, #state{port = Port, socket = Socket, workers = make_workers(queue:new())}}; %% 创建工作池
 init([InetFamily, Address, Port]) ->
   {ok, Socket} = start(Address, Port, InetFamily),
   {ok, #state{address = Address, port = Port, socket = Socket, workers = make_workers(queue:new())}};
@@ -78,7 +78,7 @@ handle_cast(_Message, State) ->
   {noreply, State}.
 handle_info(timeout, State) ->
   {noreply, State};
-handle_info({udp, Socket, Host, Port, Bin}, State) ->
+handle_info({udp, Socket, Host, Port, Bin}, State) -> %% 处理udp请求
   Response = folsom_metrics:histogram_timed_update(udp_handoff_histogram, ?MODULE, handle_request, [Socket, Host, Port, Bin, State]),
   inet:setopts(State#state.socket, [{active, 100}]),
   Response;
@@ -122,11 +122,11 @@ start(Address, Port, InetFamily, SocketOpts) ->
 %% must return very fast. The execution time of this function
 %% will determine the overall QPS of the system.
 handle_request(Socket, Host, Port, Bin, State) ->
-  case queue:out(State#state.workers) of
+  case queue:out(State#state.workers) of %% 取出工作进程，进行消息处理
     {{value, Worker}, Queue} ->
       gen_server:cast(Worker, {udp_query, Socket, Host, Port, Bin}),
       {noreply, State#state{workers = queue:in(Worker, Queue)}};
-    {empty, _Queue} ->
+    {empty, _Queue} -> %% 没有工作进程
       folsom_metrics:notify({packet_dropped_empty_queue_counter, {inc, 1}}),
       folsom_metrics:notify({packet_dropped_empty_queue_meter, 1}),
       lager:info("Queue is empty, dropping packet"),

@@ -83,7 +83,7 @@ handle({trailing_garbage, Message, _}, Context) ->
   handle(Message, Context);
 %% Handle the message, checking to see if it is throttled.
 handle(Message, Context = {_, Host}) when is_record(Message, dns_message) ->
-  handle(Message, Host, erldns_query_throttle:throttle(Message, Context));
+  handle(Message, Host, erldns_query_throttle:throttle(Message, Context)); %% 超过查询的极限了
 %% The message was bad so just return it.
 %% TODO: consider just throwing away the message
 handle(BadMessage, {_, Host}) ->
@@ -110,7 +110,7 @@ handle(Message, Host, _) ->
   erldns_events:notify({end_handle, [{host, Host}, {message, Message}, {response, Response}]}),
   Response.
 
-do_handle(Message, Host) ->
+do_handle(Message, Host) -> %% 处理dns的查询操作
   NewMessage = handle_message(Message, Host),
   complete_response(erldns_axfr:optionally_append_soa(NewMessage)).
 
@@ -120,7 +120,7 @@ do_handle(Message, Host) ->
 %% If the cache is missed, then the SOA (Start of Authority) is discovered here.
 handle_message(Message, Host) ->
   case erldns_packet_cache:get({Message#dns_message.questions, Message#dns_message.additional}, Host) of
-    {ok, CachedResponse} ->
+    {ok, CachedResponse} -> %% 缓存命中
       erldns_events:notify({packet_cache_hit, [{host, Host}, {message, Message}]}),
       CachedResponse#dns_message{id=Message#dns_message.id};
     {error, Reason} ->
@@ -135,7 +135,7 @@ handle_message(Message, Host) ->
 handle_packet_cache_miss(Message, [], _Host) ->
   case erldns_config:use_root_hints() of
     true ->
-      {Authority, Additional} = erldns_records:root_hints(),
+      {Authority, Additional} = erldns_records:root_hints(),%%返回根服务器
       Message#dns_message{aa = false, rc = ?DNS_RCODE_REFUSED, authority = Authority, additional = Additional};
     _ ->
       Message#dns_message{aa = false, rc = ?DNS_RCODE_REFUSED}
